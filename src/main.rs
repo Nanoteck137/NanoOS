@@ -21,6 +21,15 @@ fn main() {
     let pe = pe_parser::PeParser::parse(&bytes).expect("Failed to parse pe");
     println!("PE: {:?}", pe);
 
+    pe.sections(|base, size, raw_data| {
+        println!("Section");
+        println!("Base: 0x{:x}", base);
+        println!("Size: {}", size);
+        println!("raw_data: {:?}", raw_data);
+
+        Some(())
+    });
+
     std::fs::create_dir_all("build")
         .expect("Failed to create the build directory");
 

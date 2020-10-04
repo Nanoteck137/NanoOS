@@ -100,4 +100,40 @@ impl<'a> PeParser<'a> {
         Some(PeParser { bytes, machine, image_base, entry_point, 
                         num_sections, section_offset })
     }
+
+    pub fn sections<F>(&self, mut func: F) -> Option<()>
+        where F: FnMut(u64, u32, &[u8]) -> Option<()> {
+        
+        let bytes = self.bytes;
+        for section in 0..self.num_sections {
+            let offset = self.section_offset + section * 0x28;
+
+            // let name = bytes.get(offset + 0..offset + 8)?;
+
+            let virtual_size = u32::from_le_bytes(bytes.get(offset + 8..offset + 12)?.try_into().ok()?);
+
+            let virtual_address = u32::from_le_bytes(bytes.get(offset + 12..offset + 16)?.try_into().ok()?);
+
+            let raw_size = u32::from_le_bytes(bytes.get(offset + 16..offset + 20)?.try_into().ok()?);
+
+            let raw_offset: usize = u32::from_le_bytes(bytes.get(offset + 20..offset + 24)?.try_into().ok()?).try_into().ok()?;
+
+            // TODO(patrik): Get the 'Characteristics' field from 
+            // the section header and get the permissions from that
+            
+            // let characteristics = 
+            //     u32::from_le_bytes(bytes.get(offset + 36..offset + 40)?
+            //         .try_into().ok()?);
+
+            let raw_size: usize = core::cmp::min(raw_size, virtual_size).try_into().ok()?;
+
+            func(
+                self.image_base.checked_add(virtual_address as u64)?,
+                virtual_size,
+                bytes.get(raw_offset..raw_offset.checked_add(raw_size)?)?
+            )?;
+        }
+
+        Some(())
+    }
 }
