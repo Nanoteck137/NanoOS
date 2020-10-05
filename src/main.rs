@@ -10,8 +10,8 @@ fn main() {
     // TODO(patrik): Create a PE Parser
     // TODO(patrik): Flatten the PE
 
-    let mut f =
-        File::open("bootloader/target/i586-pc-windows-msvc/debug/bootloader.exe")
+    let mut f = File::open(
+        "bootloader/target/i586-pc-windows-msvc/debug/bootloader.exe")
             .expect("Could not open bootloader pe");
 
     let mut bytes = Vec::new();
