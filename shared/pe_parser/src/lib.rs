@@ -3,6 +3,7 @@ use core::convert::TryInto;
 const IMAGE_FILE_MACHINE_I386: u16 = 0x14c;
 const IMAGE_FILE_MACHINE_AMD64: u16 = 0x8664; 
 
+// Represents a supported machine of the PE file that we support as a parser
 #[derive(Debug)]
 enum PeMachine {
     Unknown,
@@ -10,6 +11,8 @@ enum PeMachine {
     I386
 }
 
+// Infomation about the PE file we parsed and infomation we need to 
+// parse out the sections
 #[derive(Debug)]
 pub struct PeParser<'a> {
     bytes: &'a [u8],
@@ -25,7 +28,7 @@ pub struct PeParser<'a> {
 
 impl<'a> PeParser<'a> {
     pub fn parse(bytes: &'a [u8]) -> Option<Self> {
-        let bytes: &[u8] = bytes.as_ref();
+        let bytes = bytes.as_ref();
 
         // Check the DOS Header signature, and the signature 
         // should be 0x5A4D or 'MZ'
@@ -97,8 +100,8 @@ impl<'a> PeParser<'a> {
 
         // Parse the entry point offset
         let entry_point = 
-        u32::from_le_bytes(bytes.get(pe_offset + 0x28..pe_offset+0x2c)?
-            .try_into().ok()?) as u64;
+            u32::from_le_bytes(bytes.get(pe_offset + 0x28..pe_offset+0x2c)?
+                .try_into().ok()?) as u64;
         // Calculate the real entry point based on the image base 
         // and the entry point offset
         let entry_point = image_base.checked_add(entry_point)?;
