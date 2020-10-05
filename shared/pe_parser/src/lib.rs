@@ -20,7 +20,7 @@ pub struct PeParser<'a> {
     machine: PeMachine,
 
     image_base: u64,
-    entry_point: u64,
+    pub entry_point: u64,
 
     num_sections: usize,
     section_offset: usize,

@@ -8,5 +8,5 @@ rustflags = [
     "-C", 
     "linker=lld-link", 
     "-C", 
-    "link-args=/entry:entry /subsystem:native /base:0x7e00 /fixed /align:16 /debug:dwarf /nodefaultlib"
+    "link-args=/entry:entry /subsystem:native /filealign:0x1000 /base:0x6e00 /fixed /align:1 /debug:dwarf /nodefaultlib"
 ]
