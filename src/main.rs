@@ -8,21 +8,29 @@ use std::path::Path;
 
 extern crate pe_parser;
 
-fn flatten_pe_to_image<F: AsRef<Path>>(filename: F) -> Option<(u32, u32, Vec<u8>)> {
+fn flatten_pe_to_image<F: AsRef<Path>>(filename: F) 
+    -> Option<(u32, u32, Vec<u8>)> {
+    // Open the pe file
     let mut f = File::open(filename)
             .expect("Could not open bootloader pe");
 
+    // Initialize a vec to store the file bytes
     let mut bytes = Vec::new();
+    // Read the file and put it in the vec
     f.read_to_end(&mut bytes)
         .expect("Could not read the bootloader exe");
 
+    // Parse the pe file
     let pe = pe_parser::PeParser::parse(&bytes).expect("Failed to parse pe");
-    println!("{:?}", pe);
 
+    // Image start and end used to calculate the image size and calculate 
+    // the offset in the new image
     let mut image_start = None;
     let mut image_end = None;
 
-    pe.sections(|base, size, raw_data| {
+    // Search through the sections and calculate the bounds of the image 
+    // i.e the image_start and image_end
+    pe.sections(|base, size, _| {
         // Convert the size to a u64
         let size = size as u64;
 
@@ -44,21 +52,27 @@ fn flatten_pe_to_image<F: AsRef<Path>>(filename: F) -> Option<(u32, u32, Vec<u8>
         Some(())
     });
 
-    
+    // Remove the option part    
     let image_start = image_start?;
     let image_end = image_end?;
     
+    // Calculate the image size
     let image_size: usize = 
         image_end.checked_sub(image_start)?.checked_add(1)?
         .try_into().ok()?;
 
+    // Initialize a vec to hold the final flatten image
     let mut flatten_image = vec![0u8; image_size];
 
+    // Go through the sections again to put them in the storage
     pe.sections(|base, size, raw_data| {
+        // Calculate the offset in the flatten_image vec
         let offset: usize = 
             (base.checked_sub(image_start)?).try_into().ok()?;
+        // Get the size
         let size: usize = size.try_into().ok()?;
 
+        // Put the sections raw data in the flatten_image vec
         flatten_image[offset..offset.checked_add(size)?]
             .copy_from_slice(raw_data);
 
@@ -70,6 +84,7 @@ fn flatten_pe_to_image<F: AsRef<Path>>(filename: F) -> Option<(u32, u32, Vec<u8>
     println!("Image Size: {}", image_size);
     println!("Image: {:?}", flatten_image);
 
+    // Return the entry point, the image start and the final flatten image
     Some((pe.entry_point.try_into().ok()?, 
         image_start.try_into().ok()?, 
         flatten_image))
@@ -83,24 +98,7 @@ fn main() {
     let image = flatten_pe_to_image(
         "bootloader/target/i586-pc-windows-msvc/debug/bootloader.exe");
         println!("Image: {:x?}", image);
-/*
-    let mut f = File::open(
-        "bootloader/target/i586-pc-windows-msvc/debug/bootloader.exe")
-            .expect("Could not open bootloader pe");
-
-    let mut bytes = Vec::new();
-    f.read_to_end(&mut bytes)
-        .expect("Could not read the bootloader exe");
-
-    let pe = pe_parser::PeParser::parse(&bytes).expect("Failed to parse pe");
-    // println!("PE: {:?}", pe);
-
-    let x = || -> Option<()> {
         
-    };
-
-    x().unwrap();
-*/
     std::fs::create_dir_all("build")
         .expect("Failed to create the build directory");
 
