@@ -79,11 +79,6 @@ fn flatten_pe_to_image<F: AsRef<Path>>(filename: F)
         Some(())
     })?;
 
-    println!("Image Start: 0x{:x}", image_start);
-    println!("Image End: 0x{:x}", image_end);
-    println!("Image Size: {}", image_size);
-    println!("Image: {:?}", flatten_image);
-
     // Return the entry point, the image start and the final flatten image
     Some((pe.entry_point.try_into().ok()?, 
         image_start.try_into().ok()?, 
@@ -91,14 +86,12 @@ fn flatten_pe_to_image<F: AsRef<Path>>(filename: F)
 }
 
 fn main() {
-    // TODO(patrik): Build the bootloader
-    // TODO(patrik): Create a PE Parser
-    // TODO(patrik): Flatten the PE
+    let (entry_point, start, bytes) = flatten_pe_to_image(
+        "bootloader/target/i586-pc-windows-msvc/debug/bootloader.exe").unwrap();
+    println!("Entry Point: {:x?}", entry_point);
+    println!("Start: {:x?}", start);
+    println!("Bytes: {:x?}", bytes);
 
-    let image = flatten_pe_to_image(
-        "bootloader/target/i586-pc-windows-msvc/debug/bootloader.exe");
-        println!("Image: {:x?}", image);
-        
     std::fs::create_dir_all("build")
         .expect("Failed to create the build directory");
 
