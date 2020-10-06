@@ -5,14 +5,15 @@ use std::convert::TryInto;
 use std::io::prelude::*;
 use std::fs::File;
 use std::path::Path;
+use std::error::Error;
 
 extern crate pe_parser;
 
-fn flatten_pe_to_image<F: AsRef<Path>>(filename: F) 
-    -> Option<(u32, u32, Vec<u8>)> {
+fn flatten_pe_to_image<P: AsRef<Path>>(filename: P) 
+        -> Option<(u32, u32, Vec<u8>)> {
     // Open the pe file
     let mut f = File::open(filename)
-            .expect("Could not open bootloader pe");
+        .expect("Could not open bootloader pe");
 
     // Initialize a vec to store the file bytes
     let mut bytes = Vec::new();
@@ -21,7 +22,8 @@ fn flatten_pe_to_image<F: AsRef<Path>>(filename: F)
         .expect("Could not read the bootloader exe");
 
     // Parse the pe file
-    let pe = pe_parser::PeParser::parse(&bytes).expect("Failed to parse pe");
+    let pe = pe_parser::PeParser::parse(&bytes)
+        .expect("Failed to parse pe");
 
     // Image start and end used to calculate the image size and calculate 
     // the offset in the new image
@@ -85,24 +87,30 @@ fn flatten_pe_to_image<F: AsRef<Path>>(filename: F)
         flatten_image))
 }
 
-fn main() {
-    let (entry_point, start, bytes) = flatten_pe_to_image(
-        "bootloader/target/i586-pc-windows-msvc/debug/bootloader.exe").unwrap();
+fn main() -> Result<(), Box<dyn Error>> {
+    let (entry_point, start, bytes) = 
+        flatten_pe_to_image(
+            "bootloader/target/i586-pc-windows-msvc/debug/bootloader.exe")
+                .unwrap();
     println!("Entry Point: {:x?}", entry_point);
     println!("Start: {:x?}", start);
     println!("Bytes: {:x?}", bytes);
 
-    std::fs::create_dir_all("build")
-        .expect("Failed to create the build directory");
+    std::fs::create_dir_all("build")?;
+
+    println!("Building the bootloader");
+    Command::new("cargo")
+        .current_dir("bootloader")
+        .args(&["build"])
+        .status()?.success();
 
     println!("Assembling 'start.asm'");
-    let output = Command::new("nasm")
-                    .args(&[
-                        "-f", "bin",
-                        "bootloader/src/start.asm",
-                        "-o", "build/start.bin"])
-                    .output()
-                    .expect("Failed to assemble 'start.asm'");
+    Command::new("nasm")
+        .args(&[
+            "-f", "bin",
+            "bootloader/src/start.asm",
+            "-o", "build/start.bin"])
+        .status()?.success();
                     
-    println!("{:?}", output.stderr);
+    Ok(())
 }
