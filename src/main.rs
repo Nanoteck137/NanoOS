@@ -131,14 +131,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let bootloader_exe = dunce::canonicalize(bootloader_exe)?;
 
     // Flatten the bootloader pe
-    let (entry_point, start, bytes) = 
+    let (entry_point, _start, bytes) = 
         flatten_pe_to_image(bootloader_exe).unwrap();
-    println!("Entry Point: {:x?}", entry_point);
-    println!("Start: {:x?}", start);
-    println!("Bytes: {:x?}", bytes);
 
     // Write out the bootloader code to a file so the stage0 can include it
-    std::fs::write("build/bootloader_code.bin", &bytes);
+    std::fs::write("build/bootloader_code.bin", &bytes)?;
 
     // Construct the path to the stage0 assembly file
     let bootloader_stage0_asm = 
