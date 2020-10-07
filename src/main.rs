@@ -137,9 +137,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Start: {:x?}", start);
     println!("Bytes: {:x?}", bytes);
 
-    let mut file = File::create("build/test.bin")?;
-    file.write_all(&bytes)?;
+    // Write out the bootloader code to a file so the stage0 can include it
+    std::fs::write("build/bootloader_code.bin", &bytes);
 
+    // Construct the path to the stage0 assembly file
     let bootloader_stage0_asm = 
         Path::new("bootloader")
             .join("src")
@@ -147,6 +148,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             .join("x86_64")
             .join("stage0.asm")
             .canonicalize()?;
+    // Convert the path if on we are on Windows
+    let bootloader_stage0_asm = 
+        dunce::canonicalize(bootloader_stage0_asm)?;
 
     // Run nasm and assemble the start.asm assembly file
     println!("Assembling 'start.asm'");

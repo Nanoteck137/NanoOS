@@ -14,24 +14,27 @@ entry:
     mov dl, [boot_disk]
     mov ch, 0
     mov dh, 0x00
-    mov cl, 2 ; Read from sector 2, one sector after the boot sector
+    mov cl, 2 ; Start from sector 2, Sector 1 is the bootstrap code 
+              ; loaded from the bios 
 
     int 0x13
     ; Check for errors
 
+    ; Enable the A20 line
 	in al, 0x92
 	or al, 2
 	out 0x92, al
 
-    xor ax, ax
-    mov ds, ax
+    ; Load the GDT
+    lgdt [pm_gdt]
 
-    lgdt [ds:pm_gdt]
-
+    ; Enable protected mode
 	mov eax, cr0
 	or  eax, (1 << 0)
 	mov cr0, eax
 
+    ; Do a far jump to the 32 bit entry code, because we need to flush 
+    ; the CPU pipeline so it can switch to 32 bit
     jmp 0x0008:pm_entry
 
 [bits 32]
@@ -67,5 +70,5 @@ times 510 - ($ - $$) db 0
 dw 0xaa55
 
 disk_load_ptr:
-incbin "build/test.bin"
+incbin "build/bootloader_code.bin"
 times 0x8000 - ($ - disk_load_ptr) db 0
