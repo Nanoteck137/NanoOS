@@ -8,6 +8,7 @@ use std::path::Path;
 use std::error::Error;
 
 extern crate pe_parser;
+extern crate dunce;
 
 fn flatten_pe_to_image<P: AsRef<Path>>(filename: P) 
         -> Option<(u32, u32, Vec<u8>)> {
@@ -88,21 +89,49 @@ fn flatten_pe_to_image<P: AsRef<Path>>(filename: P)
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    std::fs::create_dir_all("build")?;
+    std::fs::create_dir_all("build/bootloader")?;
+    std::fs::create_dir_all("build/kernel")?;
+
+    // Construct the path to the bootloader directory where the 
+    // bootloader project is located
+    let bootloader_path = Path::new("bootloader").canonicalize()?;
+
+    // On Windows the path is a UNC and we need a normal path,
+    // so we use 'dunce' to convert the
+    // UNC path to the normal path
+    let bootloader_path = dunce::canonicalize(bootloader_path)?;
+    println!("Bootloader Path: {:?}", bootloader_path);
+
+    // Construct the path to the bootloader build directory
+    let bootloader_target_path = 
+        Path::new("build").join("bootloader").canonicalize()?;
+    // Convert the path
+    let bootloader_target_path = dunce::canonicalize(bootloader_target_path)?;
+    
+    println!("Building the bootloader");
+    Command::new("cargo")
+        .current_dir(bootloader_path)
+        .args(&[
+              "build", 
+              "--target-dir", 
+              bootloader_target_path.to_str().unwrap()])
+        .status()?.success();
+
+    let bootloader_exe = 
+        Path::new(&bootloader_target_path)
+        .join("i586-pc-windows-msvc")
+        .join("debug")
+        .join("bootloader.exe")
+        .canonicalize()?;
+    let bootloader_exe = dunce::canonicalize(bootloader_exe)?;
+    println!("Bootloader exe: {:?}", bootloader_exe);
+
     let (entry_point, start, bytes) = 
-        flatten_pe_to_image(
-            "bootloader/target/i586-pc-windows-msvc/debug/bootloader.exe")
-                .unwrap();
+        flatten_pe_to_image(bootloader_exe).unwrap();
     println!("Entry Point: {:x?}", entry_point);
     println!("Start: {:x?}", start);
     println!("Bytes: {:x?}", bytes);
-
-    std::fs::create_dir_all("build")?;
-
-    println!("Building the bootloader");
-    Command::new("cargo")
-        .current_dir("bootloader")
-        .args(&["build"])
-        .status()?.success();
 
     println!("Assembling 'start.asm'");
     Command::new("nasm")

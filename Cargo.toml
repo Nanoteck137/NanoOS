@@ -8,3 +8,5 @@ edition = "2018"
 
 [dependencies]
 pe_parser = { path = "shared/pe_parser" }
+dunce = "1.0.1"
+
