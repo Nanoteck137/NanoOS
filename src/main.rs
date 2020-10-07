@@ -89,6 +89,7 @@ fn flatten_pe_to_image<P: AsRef<Path>>(filename: P)
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+    // Create the build directories we need
     std::fs::create_dir_all("build")?;
     std::fs::create_dir_all("build/bootloader")?;
     std::fs::create_dir_all("build/kernel")?;
@@ -104,11 +105,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Bootloader Path: {:?}", bootloader_path);
 
     // Construct the path to the bootloader build directory
-    let bootloader_target_path = 
+    let bootloader_target_path =                                         
         Path::new("build").join("bootloader").canonicalize()?;
     // Convert the path
     let bootloader_target_path = dunce::canonicalize(bootloader_target_path)?;
     
+    // Build the bootloader rust project
     println!("Building the bootloader");
     Command::new("cargo")
         .current_dir(bootloader_path)
@@ -118,26 +120,37 @@ fn main() -> Result<(), Box<dyn Error>> {
               bootloader_target_path.to_str().unwrap()])
         .status()?.success();
 
+    // Construct the path to the bootloader executable
     let bootloader_exe = 
         Path::new(&bootloader_target_path)
         .join("i586-pc-windows-msvc")
         .join("debug")
         .join("bootloader.exe")
         .canonicalize()?;
+    // Convert the path if on we are on Windows
     let bootloader_exe = dunce::canonicalize(bootloader_exe)?;
-    println!("Bootloader exe: {:?}", bootloader_exe);
 
+    // Flatten the bootloader pe
     let (entry_point, start, bytes) = 
         flatten_pe_to_image(bootloader_exe).unwrap();
     println!("Entry Point: {:x?}", entry_point);
     println!("Start: {:x?}", start);
     println!("Bytes: {:x?}", bytes);
 
+    let bootloader_stage0_asm = 
+        Path::new("bootloader")
+            .join("src")
+            .join("arch")
+            .join("x86_64")
+            .join("stage0.asm")
+            .canonicalize()?;
+
+    // Run nasm and assemble the start.asm assembly file
     println!("Assembling 'start.asm'");
     Command::new("nasm")
         .args(&[
             "-f", "bin",
-            "bootloader/src/start.asm",
+            bootloader_stage0_asm.to_str().unwrap(),
             "-o", "build/start.bin"])
         .status()?.success();
                     
