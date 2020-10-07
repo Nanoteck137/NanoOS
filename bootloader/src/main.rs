@@ -14,5 +14,9 @@ fn panic(_info: &PanicInfo) -> ! {
 
 #[no_mangle]
 extern fn entry() -> ! {
+    let screen = 0xb8000 as *mut u16;
+    unsafe {
+        *screen.offset(0) = 0x0f43;
+    }
     loop {}
 }

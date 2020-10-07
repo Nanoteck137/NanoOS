@@ -5,6 +5,20 @@ entry:
     cli
     cld
 
+    mov [boot_disk], dl
+
+    ; Load some space
+    mov ah, 0x02
+    mov bx, bootloader_entry
+    mov al, 1 ; More?
+    mov dl, [boot_disk]
+    mov ch, 0
+    mov dh, 0x00
+    mov cl, 2 ; Read from sector 2, one sector after the boot sector
+
+    int 0x13
+    ; Check for errors
+
 	in    al, 0x92
 	or    al, 2
 	out 0x92, al
@@ -32,7 +46,7 @@ pm_entry:
 
     mov esp, 0x7c00
 
-    mov word [0xb8000], 0x0f41
+    call bootloader_entry
 
     jmp $
 
@@ -46,5 +60,11 @@ pm_gdt:
 	dw (pm_gdt - pm_gdt_base) - 1
 	dd pm_gdt_base
 
+boot_disk:
+    db 0
+
 times 510 - ($ - $$) db 0
 dw 0xaa55
+
+bootloader_entry:
+incbin "build/test.bin"

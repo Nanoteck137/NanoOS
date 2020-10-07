@@ -137,6 +137,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Start: {:x?}", start);
     println!("Bytes: {:x?}", bytes);
 
+    let mut file = File::create("build/test.bin")?;
+    file.write_all(&bytes);
+    if bytes.len() < 512 {
+        let rem = 512 - bytes.len();
+        let zero = vec![0u8; rem];
+
+        file.write_all(&zero);
+    }
+
     let bootloader_stage0_asm = 
         Path::new("bootloader")
             .join("src")
