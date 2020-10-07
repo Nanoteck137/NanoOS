@@ -138,13 +138,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Bytes: {:x?}", bytes);
 
     let mut file = File::create("build/test.bin")?;
-    file.write_all(&bytes);
-    if bytes.len() < 512 {
-        let rem = 512 - bytes.len();
-        let zero = vec![0u8; rem];
-
-        file.write_all(&zero);
-    }
+    file.write_all(&bytes)?;
 
     let bootloader_stage0_asm = 
         Path::new("bootloader")
@@ -159,6 +153,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Command::new("nasm")
         .args(&[
             "-f", "bin",
+            &format!("-Dentry_point={:#x}", entry_point),
             bootloader_stage0_asm.to_str().unwrap(),
             "-o", "build/start.bin"])
         .status()?.success();
