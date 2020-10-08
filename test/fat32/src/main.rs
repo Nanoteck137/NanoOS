@@ -202,57 +202,69 @@ fn parse_bpb(bytes: &[u8]) -> Option<(BPB, ExtendedBPB32)> {
     }, extended_bpb_32))
 }
 
-fn parse_directory_entry(bytes: &[u8]) -> Option<()> {
+#[derive(Debug)]
+struct DirectoryEntry {
+    name: [u8; 8],
+    ext: [u8; 3],
+    attributes: u8,
+    undelete: u8,
+    creation_time: u16,
+    creation_date: u16,
+    last_accessed_date: u16,
+    last_modification_time: u16,
+    last_modification_date: u16,
+    cluster: u32,
+    file_size: u32, 
+}
+
+fn parse_directory_entry(bytes: &[u8]) -> Option<DirectoryEntry> {
     let name: [u8; 8] = bytes[0..8].try_into().ok()?;
-    println!("Name: {}", std::str::from_utf8(&name).unwrap());
     let ext: [u8; 3] = bytes[8..11].try_into().ok()?;
-    println!("Ext: {}", std::str::from_utf8(&ext).unwrap());
     let attributes = bytes[11];
-    println!("Attributes: {:#x}", attributes);
     
     let reserved = bytes[12];
-    println!("Reserved: {}", reserved);
 
     let undelete = bytes[13];
-    println!("Undelete: {}", undelete);
 
     let creation_time = 
         u16::from_le_bytes(bytes[14..16].try_into().ok()?);
-    println!("Creation time: {:#x}", creation_time);
 
     let creation_date =
         u16::from_le_bytes(bytes[16..18].try_into().ok()?);
-    println!("Creation date: {:#x}", creation_date);
 
     let last_accessed_date =
         u16::from_le_bytes(bytes[18..20].try_into().ok()?);
-    println!("Last accessed date: {:#x}", last_accessed_date);
 
     let cluster_high = 
         u16::from_le_bytes(bytes[20..22].try_into().ok()?);
-    println!("Cluster High: {:#x}", cluster_high);
 
     let last_modification_time =
         u16::from_le_bytes(bytes[22..24].try_into().ok()?);
-    println!("Last modification time: {:#x}", last_modification_time);
 
     let last_modification_date =
         u16::from_le_bytes(bytes[24..26].try_into().ok()?);
-    println!("Last modification date: {:#x}", last_modification_date);
 
     let cluster_low =
         u16::from_le_bytes(bytes[26..28].try_into().ok()?);
-    println!("Cluster low: {:#x}", cluster_low);
 
     let cluster = ((cluster_high as u32) << 16) | cluster_low as u32;
-    println!("Cluster: {:#x}", cluster);
 
     let file_size = 
         u32::from_le_bytes(bytes[28..32].try_into().ok()?);
-    println!("File Size: {}", file_size);
 
-
-    Some(())
+    Some(DirectoryEntry {
+        name,
+        ext,
+        attributes,
+        undelete,
+        creation_time,
+        creation_date,
+        last_accessed_date,
+        last_modification_time,
+        last_modification_date,
+        cluster,
+        file_size
+    })
 }
 
 #[derive(Debug)]
@@ -267,15 +279,10 @@ struct LFNEntry {
 fn parse_lfn_entry(bytes: &[u8]) -> Option<LFNEntry> {
     let entry_order = bytes[0];
     let name_first: [u8; 10] = bytes[1..11].try_into().ok()?;
-
     let attribute = bytes[11];
-
     let long_entry_type = bytes[12];
-
     let checksum = bytes[13];
-
     let name_middle: [u8; 12] = bytes[14..26].try_into().ok()?;
-
     let name_last: [u8; 4] = bytes[28..32].try_into().ok()?;
 
     let mut name_bytes: [u8; 26] = [0u8; 26];
@@ -329,7 +336,9 @@ fn parse_directory(bytes: &[u8]) -> Option<()> {
             }
         } else {
             println!("File: {}", std::str::from_utf8(&file_name).unwrap());
-            parse_directory_entry(&bytes[offset..offset+32])?;
+            let directory_entry = 
+                parse_directory_entry(&bytes[offset..offset+32])?;
+            println!("Directory Entry: {:#?}", directory_entry);
             file_name = [0u8; 255];
             println!();
         }
