@@ -62,28 +62,87 @@ fn parse_bpb(bytes: &[u8]) -> Option<()> {
     Some(())
 }
 
+#[derive(Debug, Copy, Clone)]
+struct PartitionEntry {
+    status: u8,
+    chs_address_first: [u8; 3],
+    partition_type: u8,
+    chs_address_last: [u8; 3],
+    lba_address: u32,
+    number_of_sectors: u32
+}
+
+impl Default for PartitionEntry {
+    fn default() -> PartitionEntry {
+        PartitionEntry {
+            status: 0,
+            chs_address_first: [0; 3],
+            partition_type: 0,
+            chs_address_last: [0; 3],
+            lba_address: 0,
+            number_of_sectors: 0
+        }
+    }
+}
+
+fn parse_partition_entry(bytes: &[u8]) -> Option<PartitionEntry> {
+    // One entry is only 16 bytes to check if the slice has more then 16 bytes
+    // so we can parse it
+    if bytes.len() < 16 {
+        return None;
+    }
+
+    // Parse the status byte
+    let status = bytes[0];
+    // Parse the first absolute CHS of in the partition
+    let chs_address_first: [u8; 3] = bytes[1..4].try_into().ok()?; 
+    // Parse the partition type
+    let partition_type = bytes[4];
+    // Parse the last absolute CHS of in the partition
+    let chs_address_last: [u8; 3] = bytes[5..8].try_into().ok()?; 
+    // Parse the LBA address for where this partition starts 
+    let lba_address = u32::from_le_bytes(bytes[8..12].try_into().ok()?);
+    // Parse the number of sectors this partition takes up
+    let number_of_sectors = 
+        u32::from_le_bytes(bytes[12..16].try_into().ok()?);
+
+    // Create the partition entry structure
+    return Some(PartitionEntry {
+        status, chs_address_first, partition_type, 
+        chs_address_last, lba_address, number_of_sectors
+    });
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
+    // Open the disk file image
     let mut file = File::open("fat.fs")?; 
+    // Create a buffer for the bytes of the file
     let mut bytes = Vec::new();
 
+    // Read the file to the buffer
     file.read_to_end(&mut bytes)?;
-    parse_bpb(&bytes).unwrap();
-    let mut offset = 446;
-    let entry: [u8; 16] = bytes[offset..offset + 16].try_into()?;
-    println!("Entry: {:#x?}", entry);
-    offset += 16; 
 
-    let entry: [u8; 16] = bytes[offset..offset + 16].try_into()?;
-    println!("Entry: {:#x?}", entry);
-    offset += 16; 
+    // Initialize an array of 4 partition entries, used to fill out all 
+    // the primary partition that exists on the disk image
+    let mut parition_entries: [PartitionEntry; 4] = 
+        [PartitionEntry::default(); 4];
 
-    let entry: [u8; 16] = bytes[offset..offset + 16].try_into()?;
-    println!("Entry: {:#x?}", entry);
-    offset += 16; 
+    // The start offset of the partition entries in the boot sector
+    let parition_entry_start = 0x01BE;
+    // There is only a max of 4 primary partitions in a boot sector
+    for index in 0..4 {
+        // Calculate the offset for this specific entry
+        let offset = parition_entry_start + index * 16; 
+        // Get the raw bytes of the entry
+        let entry: [u8; 16] = bytes[offset..offset + 16].try_into()?;
+        // Parse the entry and get some infomation from the entry data
+        let entry = parse_partition_entry(&entry);
 
-    let entry: [u8; 16] = bytes[offset..offset + 16].try_into()?;
-    println!("Entry: {:#x?}", entry);
-    offset += 16; 
+        // Add the entry to the list
+        parition_entries[index] = entry.unwrap();
+    }
+
+    println!("Entries: {:#?}", parition_entries);
 
     Ok(())
 }
