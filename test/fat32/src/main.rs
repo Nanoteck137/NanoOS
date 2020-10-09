@@ -14,6 +14,40 @@ struct PartitionEntry {
     number_of_sectors: u32
 }
 
+impl PartitionEntry {
+    fn parse(bytes: &[u8]) -> Option<PartitionEntry> {
+        // One entry is only 16 bytes to check if the slice has more then 16 bytes
+        // so we can parse it
+        if bytes.len() < 16 {
+            return None;
+        }
+
+        // Parse the status byte
+        let status = bytes[0];
+        // Parse the first absolute CHS of in the partition
+        let chs_address_first: [u8; 3] = bytes[1..4].try_into().ok()?; 
+        // Parse the partition type
+        let partition_type = bytes[4];
+        // Parse the last absolute CHS of in the partition
+        let chs_address_last: [u8; 3] = bytes[5..8].try_into().ok()?; 
+        // Parse the LBA address for where this partition starts 
+        let lba_address = u32::from_le_bytes(bytes[8..12].try_into().ok()?);
+        // Parse the number of sectors this partition takes up
+        let number_of_sectors = 
+            u32::from_le_bytes(bytes[12..16].try_into().ok()?);
+
+        // Create the partition entry structure
+        return Some(PartitionEntry {
+            status, 
+            chs_address_first, 
+            partition_type, 
+            chs_address_last, 
+            lba_address, 
+            number_of_sectors
+        });
+    }
+}
+
 impl Default for PartitionEntry {
     fn default() -> PartitionEntry {
         PartitionEntry {
@@ -27,32 +61,8 @@ impl Default for PartitionEntry {
     }
 }
 
-fn parse_partition_entry(bytes: &[u8]) -> Option<PartitionEntry> {
-    // One entry is only 16 bytes to check if the slice has more then 16 bytes
-    // so we can parse it
-    if bytes.len() < 16 {
-        return None;
-    }
-
-    // Parse the status byte
-    let status = bytes[0];
-    // Parse the first absolute CHS of in the partition
-    let chs_address_first: [u8; 3] = bytes[1..4].try_into().ok()?; 
-    // Parse the partition type
-    let partition_type = bytes[4];
-    // Parse the last absolute CHS of in the partition
-    let chs_address_last: [u8; 3] = bytes[5..8].try_into().ok()?; 
-    // Parse the LBA address for where this partition starts 
-    let lba_address = u32::from_le_bytes(bytes[8..12].try_into().ok()?);
-    // Parse the number of sectors this partition takes up
-    let number_of_sectors = 
-        u32::from_le_bytes(bytes[12..16].try_into().ok()?);
-
-    // Create the partition entry structure
-    return Some(PartitionEntry {
-        status, chs_address_first, partition_type, 
-        chs_address_last, lba_address, number_of_sectors
-    });
+#[derive(Debug)]
+struct ExtendedBPB16 {
 }
 
 #[derive(Debug)]
@@ -70,57 +80,66 @@ struct ExtendedBPB32 {
     fs_type: [u8; 8]
 }
 
-fn parse_extended_bpb_32(bytes: &[u8]) -> Option<ExtendedBPB32> {
-    if bytes.len() > 447 {
-        return None;
+impl ExtendedBPB32 {
+    fn parse(bytes: &[u8]) -> Option<ExtendedBPB32> {
+        // TODO(patrik): Check this this
+        if bytes.len() < 447 {
+            return None;
+        }
+
+        let fat_size = 
+            u32::from_le_bytes(bytes[0..4].try_into().ok()?);
+
+        let flags = 
+            u16::from_le_bytes(bytes[4..6].try_into().ok()?);
+
+        let fs_version = 
+            u16::from_le_bytes(bytes[6..8].try_into().ok()?);
+
+        let root_cluster = 
+            u32::from_le_bytes(bytes[8..12].try_into().ok()?);
+
+        let fs_info = 
+            u16::from_le_bytes(bytes[12..14].try_into().ok()?);
+        
+        let backup_boot_sector =
+            u16::from_le_bytes(bytes[14..16].try_into().ok()?);
+
+        // let reserved: [u8; 12] = bytes[16..28].try_into().ok()?;
+
+        let drive_number = bytes[28];
+
+        // let reserved2 = bytes[29];
+
+        let boot_signature = bytes[30];
+
+        let volume_id = 
+            u32::from_le_bytes(bytes[31..35].try_into().ok()?);
+
+        let volume_label: [u8; 11] = bytes[35..46].try_into().ok()?;
+
+        let fs_type: [u8; 8] = bytes[46..54].try_into().ok()?;
+
+        Some(ExtendedBPB32 {
+            fat_size,
+            flags,
+            fs_version,
+            root_cluster,
+            fs_info,
+            backup_boot_sector,
+            drive_number,
+            boot_signature,
+            volume_id,
+            volume_label,
+            fs_type
+        })
     }
+}
 
-    let fat_size = 
-        u32::from_le_bytes(bytes[0..4].try_into().ok()?);
-
-    let flags = 
-        u16::from_le_bytes(bytes[4..6].try_into().ok()?);
-
-    let fs_version = 
-        u16::from_le_bytes(bytes[6..8].try_into().ok()?);
-
-    let root_cluster = 
-        u32::from_le_bytes(bytes[8..12].try_into().ok()?);
-
-    let fs_info = 
-        u16::from_le_bytes(bytes[12..14].try_into().ok()?);
-    
-    let backup_boot_sector =
-        u16::from_le_bytes(bytes[14..16].try_into().ok()?);
-
-    // let reserved: [u8; 12] = bytes[16..28].try_into().ok()?;
-
-    let drive_number = bytes[28];
-
-    // let reserved2 = bytes[29];
-
-    let boot_signature = bytes[30];
-
-    let volume_id = 
-        u32::from_le_bytes(bytes[31..35].try_into().ok()?);
-
-    let volume_label: [u8; 11] = bytes[35..46].try_into().ok()?;
-
-    let fs_type: [u8; 8] = bytes[46..54].try_into().ok()?;
-
-    Some(ExtendedBPB32 {
-        fat_size,
-        flags,
-        fs_version,
-        root_cluster,
-        fs_info,
-        backup_boot_sector,
-        drive_number,
-        boot_signature,
-        volume_id,
-        volume_label,
-        fs_type
-    })
+#[derive(Debug)]
+enum ExtendedBPB {
+    Fat16(ExtendedBPB16),
+    Fat32(ExtendedBPB32)
 }
 
 #[derive(Debug)]
@@ -139,68 +158,76 @@ struct BPB {
     number_of_heads: u16,
     hidden_sectors: u32,
     total_sectors_32: u32,
+
+    extended_bpb: ExtendedBPB
 }
 
-fn parse_bpb(bytes: &[u8]) -> Option<(BPB, ExtendedBPB32)> {
-    if bytes.len() > 512 {
-        return None;
+impl BPB {
+    fn parse(bytes: &[u8]) -> Option<BPB> {
+        if bytes.len() < 512 {
+            return None;
+        }
+
+        let jmp: [u8; 3] = bytes[0..3].try_into().ok()?;
+
+        let oem_name: [u8; 8] = bytes[3..11].try_into().ok()?;
+
+        let bytes_per_sector = 
+            u16::from_le_bytes(bytes[11..13].try_into().ok()?);
+
+        let sectors_per_cluster: u8 = bytes[13];
+
+        let reserved_sector_count = 
+            u16::from_le_bytes(bytes[14..16].try_into().ok()?);
+
+        let num_fats = bytes[16];
+
+        let root_entry_count = 
+            u16::from_le_bytes(bytes[17..19].try_into().ok()?);
+
+        let total_sectors_16 = 
+            u16::from_le_bytes(bytes[19..21].try_into().ok()?);
+
+        let media = bytes[21];
+
+        let fat_size_16 = 
+            u16::from_le_bytes(bytes[22..24].try_into().ok()?);
+
+        let sectors_per_track = 
+            u16::from_le_bytes(bytes[24..26].try_into().ok()?);
+        
+        let number_of_heads = 
+            u16::from_le_bytes(bytes[26..28].try_into().ok()?);
+
+        let hidden_sectors = 
+            u32::from_le_bytes(bytes[28..32].try_into().ok()?);
+
+        let total_sectors_32 = 
+            u32::from_le_bytes(bytes[32..36].try_into().ok()?);
+
+        let extended_bpb_32 = ExtendedBPB32::parse(&bytes[36..])?;
+        let extended_bpb = ExtendedBPB::Fat32(extended_bpb_32);
+
+        Some(BPB {
+            jmp,
+            oem_name,
+            bytes_per_sector,
+            sectors_per_cluster,
+            reserved_sector_count,
+            num_fats,
+            root_entry_count,
+            total_sectors_16,
+            media,
+            fat_size_16,
+            sectors_per_track,
+            number_of_heads,
+            hidden_sectors,
+            total_sectors_32,
+            extended_bpb
+        })
     }
-
-    let jmp: [u8; 3] = bytes[0..3].try_into().ok()?;
-
-    let oem_name: [u8; 8] = bytes[3..11].try_into().ok()?;
-
-    let bytes_per_sector = 
-        u16::from_le_bytes(bytes[11..13].try_into().ok()?);
-
-    let sectors_per_cluster: u8 = bytes[13];
-
-    let reserved_sector_count = 
-        u16::from_le_bytes(bytes[14..16].try_into().ok()?);
-
-    let num_fats = bytes[16];
-
-    let root_entry_count = u16::from_le_bytes(bytes[17..19].try_into().ok()?);
-
-    let total_sectors_16 = 
-        u16::from_le_bytes(bytes[19..21].try_into().ok()?);
-
-    let media = bytes[21];
-
-    let fat_size_16 = 
-        u16::from_le_bytes(bytes[22..24].try_into().ok()?);
-
-    let sectors_per_track = 
-        u16::from_le_bytes(bytes[24..26].try_into().ok()?);
-    
-    let number_of_heads = 
-        u16::from_le_bytes(bytes[26..28].try_into().ok()?);
-
-    let hidden_sectors = 
-        u32::from_le_bytes(bytes[28..32].try_into().ok()?);
-
-    let total_sectors_32 = 
-        u32::from_le_bytes(bytes[32..36].try_into().ok()?);
-
-    let extended_bpb_32 = parse_extended_bpb_32(&bytes[36..448])?;
-
-    Some((BPB {
-        jmp,
-        oem_name,
-        bytes_per_sector,
-        sectors_per_cluster,
-        reserved_sector_count,
-        num_fats,
-        root_entry_count,
-        total_sectors_16,
-        media,
-        fat_size_16,
-        sectors_per_track,
-        number_of_heads,
-        hidden_sectors,
-        total_sectors_32,
-    }, extended_bpb_32))
 }
+
 
 #[derive(Debug)]
 struct DirectoryEntry {
@@ -308,6 +335,7 @@ fn parse_lfn_entry(bytes: &[u8]) -> Option<LFNEntry> {
 
 fn parse_directory(bytes: &[u8]) -> Option<()> {
     let mut file_name: [u8; 255] = [0u8; 255];
+    let mut has_lfn_entries = false;
     for index in 0..16 {
         let offset = index * 32;
         if bytes[offset] == 0 { break; }
@@ -334,12 +362,41 @@ fn parse_directory(bytes: &[u8]) -> Option<()> {
                         (lfn_entry.name[index] & 0xff) as u8;
                 }
             }
+
+            has_lfn_entries = true;
         } else {
-            println!("File: {}", std::str::from_utf8(&file_name).unwrap());
             let directory_entry = 
                 parse_directory_entry(&bytes[offset..offset+32])?;
+
+            if !has_lfn_entries {
+                let mut end_index = 0;
+                for index in 0..8 {
+                    let character = directory_entry.name[index];
+                    if character != ' ' as u8 {
+                        file_name[index] = character;
+                    } else {
+                        end_index = index + 1;
+                        break;
+                    }
+                }
+                if end_index == 0 {
+                    end_index = 9;
+                }
+
+                if directory_entry.ext[0] != 0x00 {
+                    file_name[end_index] = '.' as u8;
+                    end_index += 1;
+                    for index in 0..3 {
+                        file_name[end_index + index] = 
+                            directory_entry.ext[index];
+                    }
+                }
+            }
+
+            println!("File: {}", std::str::from_utf8(&file_name).unwrap());
             println!("Directory Entry: {:#?}", directory_entry);
             file_name = [0u8; 255];
+            has_lfn_entries = false;
             println!();
         }
 
@@ -371,7 +428,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         // Get the raw bytes of the entry
         let entry: [u8; 16] = bytes[offset..offset + 16].try_into()?;
         // Parse the entry and get some infomation from the entry data
-        let entry = parse_partition_entry(&entry);
+        let entry = PartitionEntry::parse(&entry);
 
         // Add the entry to the list
         parition_entries[index] = entry.unwrap();
@@ -383,10 +440,16 @@ fn main() -> Result<(), Box<dyn Error>> {
     // disk image so for now we can select the first entry
     let fat_partition_entry = parition_entries[0];
     let partition_offset = fat_partition_entry.lba_address as usize * 512;
-    let (bpb, extended_bpb_32) = 
-        parse_bpb(&bytes[partition_offset..partition_offset + 512]).unwrap();
+    let data = &bytes[partition_offset..partition_offset + 512];
+    let bpb = 
+        BPB::parse(data).unwrap();
+    let extended_bpb_32 = 
+        match bpb.extended_bpb {
+            ExtendedBPB::Fat16(_) => panic!("Fat16 not supported"),
+            ExtendedBPB::Fat32(ref e) => e,
+        };
     println!("BPB: {:#?}", bpb);
-    println!("Extended BPB: {:#?}", extended_bpb_32);
+    // println!("Extended BPB: {:#?}", extended_bpb_32);
 
     let root_dir_sectors = 
         ((bpb.root_entry_count * 32) + (bpb.bytes_per_sector - 1)) / bpb.bytes_per_sector;
@@ -411,7 +474,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     parse_directory(&bytes[offset..offset+512]).unwrap();
 
     let first_fat_sector = bpb.reserved_sector_count as u32;
-    let fat_offset = 6 * 4;
+    let fat_offset = 12 * 4;
     let fat_sector = first_fat_sector + (fat_offset / 512);
     let fat_sector = fat_sector as usize;
     let entry_offset = fat_offset % 512;

@@ -112,16 +112,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     
     // Build the bootloader rust project
     println!("Building the bootloader");
-    Command::new("cargo")
+    Command::new("xargo")
         .current_dir(bootloader_path)
         .args(&[
               "build", 
+              "--target",
+              "i586-bootloader",
               "--target-dir", 
               bootloader_target_path.to_str().unwrap()])
         .status()?.success();
 
     // Construct the path to the bootloader executable
-    let bootloader_exe = 
+    /*let bootloader_exe = 
         Path::new(&bootloader_target_path)
         .join("i586-pc-windows-msvc")
         .join("debug")
@@ -132,10 +134,33 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Flatten the bootloader pe
     let (entry_point, _start, bytes) = 
-        flatten_pe_to_image(bootloader_exe).unwrap();
+        flatten_pe_to_image(bootloader_exe).unwrap();*/
+
+    // ld -m elf_i386 -n -gc-sections -T bootloader/i586-bootloader-linker.ld build/bootloader/i586-bootloader/debug/libbootloader.a
+
+    Command::new("ld")
+        .current_dir("build")
+        .args(&[
+              "-m",
+              "elf_i386",
+              "-n",
+              "-gc-sections",
+              "-T",
+              "../bootloader/i586-bootloader-linker.ld",
+              "bootloader/i586-bootloader/debug/libbootloader.a"])
+        .status()?.success();
+
+    Command::new("objcopy")
+        .current_dir("build")
+        .args(&[
+              "-O",
+              "binary",
+              "a.out",
+              "bootloader_code.bin"])
+        .status()?.success();
 
     // Write out the bootloader code to a file so the stage0 can include it
-    std::fs::write("build/bootloader_code.bin", &bytes)?;
+    // std::fs::write("build/bootloader_code.bin", &bytes)?;
 
     // Construct the path to the stage0 assembly file
     let bootloader_stage0_asm = 
@@ -154,7 +179,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Command::new("nasm")
         .args(&[
             "-f", "bin",
-            &format!("-Dentry_point={:#x}", entry_point),
+            &format!("-Dentry_point={:#x}", 0x7e00),
             bootloader_stage0_asm.to_str().unwrap(),
             "-o", "build/start.bin"])
         .status()?.success();
