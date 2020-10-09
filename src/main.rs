@@ -94,6 +94,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::fs::create_dir_all("build/bootloader")?;
     std::fs::create_dir_all("build/kernel")?;
 
+    // Construct the path to the build directory
+    let build_path = 
+        Path::new("build")
+            .canonicalize()?;
+    // Fix the windows issue
+    let build_path = dunce::canonicalize(build_path)?;
+
     // Construct the path to the bootloader directory where the 
     // bootloader project is located
     let bootloader_path = Path::new("bootloader").canonicalize()?;
@@ -121,42 +128,57 @@ fn main() -> Result<(), Box<dyn Error>> {
               "--target-dir", 
               bootloader_target_path.to_str().unwrap()])
         .status()?.success();
+    
+    // Construct a path to the bootloader linker script
+    let bootloader_linker_path = 
+        Path::new("bootloader")
+            .join("i586-bootloader-linker.ld")
+            .canonicalize()?;
+    // Fix the windows issue
+    let bootloader_linker_path = dunce::canonicalize(bootloader_linker_path)?;
+    println!("Bootloader linker path: {:?}", bootloader_linker_path);
 
-    // Construct the path to the bootloader executable
-    /*let bootloader_exe = 
-        Path::new(&bootloader_target_path)
-        .join("i586-pc-windows-msvc")
-        .join("debug")
-        .join("bootloader.exe")
-        .canonicalize()?;
-    // Convert the path if on we are on Windows
-    let bootloader_exe = dunce::canonicalize(bootloader_exe)?;
+    // The name of the bootloader elf file
+    let bootloader_final_exe_name = "bootloader.elf";
 
-    // Flatten the bootloader pe
-    let (entry_point, _start, bytes) = 
-        flatten_pe_to_image(bootloader_exe).unwrap();*/
+    // Construct the bootloader lib file
+    let bootloader_lib =
+        Path::new("build")
+            .join("bootloader")
+            .join("i586-bootloader")
+            .join("debug")
+            .join("libbootloader.a")
+            .canonicalize()?;
+    // Fix the windows issue
+    let bootloader_lib = dunce::canonicalize(bootloader_lib)?;
+    println!("Bootloader lib path: {:?}", bootloader_lib);
 
-    // ld -m elf_i386 -n -gc-sections -T bootloader/i586-bootloader-linker.ld build/bootloader/i586-bootloader/debug/libbootloader.a
-
+    // Link the bootloader and output a elf file
     Command::new("ld")
-        .current_dir("build")
+        .current_dir(&build_path)
         .args(&[
               "-m",
               "elf_i386",
               "-n",
               "-gc-sections",
               "-T",
-              "../bootloader/i586-bootloader-linker.ld",
-              "bootloader/i586-bootloader/debug/libbootloader.a"])
+              bootloader_linker_path.to_str().unwrap(),
+              "-o",
+              bootloader_final_exe_name,
+              bootloader_lib.to_str().unwrap()])
         .status()?.success();
 
+    // The name of the final binary file for the bootloader
+    let bootloader_final_binary_name = "bootloader_code.bin";
+
+    // Objcopy the bootloader elf to get a raw binary file
     Command::new("objcopy")
-        .current_dir("build")
+        .current_dir(&build_path)
         .args(&[
               "-O",
               "binary",
-              "a.out",
-              "bootloader_code.bin"])
+              bootloader_final_exe_name,
+              bootloader_final_binary_name])
         .status()?.success();
 
     // Write out the bootloader code to a file so the stage0 can include it
