@@ -350,7 +350,7 @@ fn parse_directory(bytes: &[u8]) -> Option<()> {
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Open the disk file image
-    let mut file = File::open("fat.fs")?; 
+    let mut file = File::open("disk_image.img")?; 
     // Create a buffer for the bytes of the file
     let mut bytes = Vec::new();
 
@@ -409,6 +409,26 @@ fn main() -> Result<(), Box<dyn Error>> {
     let offset: usize = 
         ((first_sector_of_cluster + fat_partition_entry.lba_address) * 512).try_into()?;
     parse_directory(&bytes[offset..offset+512]).unwrap();
+
+    let first_fat_sector = bpb.reserved_sector_count as u32;
+    let fat_offset = 6 * 4;
+    let fat_sector = first_fat_sector + (fat_offset / 512);
+    let fat_sector = fat_sector as usize;
+    let entry_offset = fat_offset % 512;
+    let entry_offset = entry_offset as usize;
+    println!("Fat Sector: {}", fat_sector);
+    println!("First Fat Sector: {:#x}", first_fat_sector);
+    println!("Entry Offset: {:#x}", entry_offset);
+
+    let fat_lba = (fat_sector + fat_partition_entry.lba_address as usize) * 512;
+    println!("Fat LBA: {:#x}", fat_lba);
+    let table: [u8; 512] = 
+        bytes[fat_lba..fat_lba + 512]
+            .try_into()?;
+    println!("Table: {:?}", table);
+    let table_entry = 
+        u32::from_le_bytes(table[entry_offset..entry_offset+4].try_into()?);
+    println!("Table Entry: {:#x}", table_entry);
 
     Ok(())
 }

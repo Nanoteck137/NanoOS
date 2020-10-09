@@ -1,0 +1,6 @@
+label: dos
+label-id: 0x2a5456cb
+device: fat.fs
+unit: sectors
+
+fat.fs1 : start=        2048, size=      129024, type=c, bootable
