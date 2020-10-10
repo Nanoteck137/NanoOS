@@ -1,4 +1,4 @@
-#![feature(lang_items)]
+#![feature(lang_items, panic_info_message)]
 
 #![no_std]
 
@@ -19,35 +19,74 @@ struct VGAWriter {
 }
 
 impl VGAWriter {
+    
+    // Clear the vga buffer
+    // TODO(patrik): Support to pick the background color of the clear
+    fn clear(&mut self) {
+        for offset in 0..(BUFFER_WIDTH * BUFFER_HEIGHT) {
+            let address = self.address + offset * 2; 
+
+            unsafe {
+                core::ptr::write_volatile(address as *mut u16, 0x0000);
+            }
+        }
+
+        self.x = 0;
+        self.y = 0;
+    }
+
     // Function to print a single character to the screen 
     // with the x and y cordinates
     fn write_byte(&mut self, character: u8) {
-        let x = self.x as usize;
-        let y = self.y as usize;
+        match character {
+            b'\n' => {
+                self.y += 1;
+                self.x = 0;
+            }
 
-        let offset = (x + (y * BUFFER_WIDTH)) * 2;
-        let address = self.address + offset;
+            _ => {
+                // Cast the cordinates to a usize
+                let x = self.x as usize;
+                let y = self.y as usize;
 
-        let color = 0x0f;
-        let character = (color as u16) << 8 | (character as u16);
+                // Calculate the offset inside the VGA buffer 
+                let offset = (x + (y * BUFFER_WIDTH)) * 2;
+                // Add the offset to the address of the buffer
+                let address = self.address + offset;
 
-        unsafe {
-            core::ptr::write_volatile(address as *mut u16, character);
+                // The color of the character
+                // TODO(patrik): Let the user to pick the color
+                let color = 0x0f;
+                // The entry we set in the buffer
+                let entry = (color as u16) << 8 | (character as u16);
+
+                unsafe {
+                    // Write the entry to the address we calculated
+                    core::ptr::write_volatile(address as *mut u16, entry);
+                }
+
+                // Increment the x cordinate
+                self.x += 1;
+            }
         }
-
-        self.x += 1;
     }
 }
 
+// Implement the fmt Write so we can use the write! macro and 
+// so we can implement the print macro
 impl core::fmt::Write for VGAWriter {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
+        // Loop through all the bytes in the string and write 
+        // them to the buffer
         for byte in s.bytes() {
           self.write_byte(byte)
         }
+
         Ok(())
     }
 }
 
+// Print the format arguments 
 fn print(args: core::fmt::Arguments) { 
     use core::fmt::Write;
     WRITER.lock().write_fmt(args).unwrap();
@@ -65,10 +104,20 @@ macro_rules! print {
     });
 }
 
+macro_rules! println {
+    ($fmt:expr) => (print!(concat!($fmt, "\n")));
+    ($fmt:expr, $($arg:tt)*) => (print!(concat!($fmt, "\n"), $($arg)*));
+}
+
 #[no_mangle]
 #[link_section = ".start"]
 extern fn entry() -> ! {
-    print!("{}", { print!("inner"); "outer" });
+    {
+        let mut writer = WRITER.lock();
+        writer.clear();
+    }
+
+    println!("Welcome to NanoOS Bootloader v0.1");
 
     loop {}
 }
@@ -76,6 +125,21 @@ extern fn entry() -> ! {
 #[lang = "eh_personality"] extern fn eh_personality() {}
 
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    // TODO(patrik): Should we disable interupts?
+    println!("---------- BOOTLOADER PANIC ----------");
+    
+    if let Some(msg) = info.message() {
+        println!("Message: {}", msg);
+    }
+
+    if let Some(loc) = info.location() {
+        println!("Location: {}:{}:{}", 
+                 loc.file(), loc.line(), loc.column());
+    }
+
+    println!("--------------------------------------");
+
+    // TODO(patrik): Replace with a halt instruction
     loop {}
 }
