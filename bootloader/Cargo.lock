@@ -4,8 +4,13 @@
 name = "bootloader"
 version = "0.1.0"
 dependencies = [
+ "rangeset",
  "spin",
 ]
+
+[[package]]
+name = "rangeset"
+version = "0.1.0"
 
 [[package]]
 name = "spin"

@@ -16,7 +16,7 @@ entry:
     ; Load some space
     mov ah, 0x02
     mov bx, disk_load_ptr
-    mov al, 64
+    mov al, 128
     mov dl, [boot_disk]
     mov ch, 0
     mov dh, 0x00
@@ -130,4 +130,4 @@ dw 0xaa55
 
 disk_load_ptr:
 incbin "build/bootloader_code.bin"
-times 0x8000 - ($ - disk_load_ptr) db 0
+times 0x10000 - ($ - disk_load_ptr) db 0

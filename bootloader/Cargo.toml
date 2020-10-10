@@ -11,3 +11,4 @@ crate-type = ["staticlib"]
 
 [dependencies]
 spin = "0.6.0"
+rangeset = { path = "../shared/rangeset" }
