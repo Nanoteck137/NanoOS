@@ -109,7 +109,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     // so we use 'dunce' to convert the
     // UNC path to the normal path
     let bootloader_path = dunce::canonicalize(bootloader_path)?;
-    println!("Bootloader Path: {:?}", bootloader_path);
 
     // Construct the path to the bootloader build directory
     let bootloader_target_path =                                         
@@ -136,7 +135,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             .canonicalize()?;
     // Fix the windows issue
     let bootloader_linker_path = dunce::canonicalize(bootloader_linker_path)?;
-    println!("Bootloader linker path: {:?}", bootloader_linker_path);
 
     // The name of the bootloader elf file
     let bootloader_final_exe_name = "bootloader.elf";
@@ -151,7 +149,8 @@ fn main() -> Result<(), Box<dyn Error>> {
             .canonicalize()?;
     // Fix the windows issue
     let bootloader_lib = dunce::canonicalize(bootloader_lib)?;
-    println!("Bootloader lib path: {:?}", bootloader_lib);
+
+    println!("Linking the bootloader elf");
 
     // Link the bootloader and output a elf file
     Command::new("ld")
@@ -171,6 +170,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     // The name of the final binary file for the bootloader
     let bootloader_final_binary_name = "bootloader_code.bin";
 
+    println!("Creating the raw binary of bootloader");
+
     // Objcopy the bootloader elf to get a raw binary file
     Command::new("objcopy")
         .current_dir(&build_path)
@@ -180,9 +181,6 @@ fn main() -> Result<(), Box<dyn Error>> {
               bootloader_final_exe_name,
               bootloader_final_binary_name])
         .status()?.success();
-
-    // Write out the bootloader code to a file so the stage0 can include it
-    // std::fs::write("build/bootloader_code.bin", &bytes)?;
 
     // Construct the path to the stage0 assembly file
     let bootloader_stage0_asm = 

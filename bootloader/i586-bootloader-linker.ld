@@ -3,9 +3,9 @@ ENTRY(entry)
 SECTIONS {
     . = 0x7e00;
 
-    .boot :
+    .start : 
     {
-        KEEP(*(.multiboot_header))
+        *(.start)
     }
 
     .text :
