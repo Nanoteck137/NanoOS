@@ -29,7 +29,6 @@ extern fn entry() -> ! {
     unsafe {
         let entry_ptr = 0x0500 as *const MemoryMapEntry;
         let mut entry = entry_ptr.offset(0);
-        let mut offset = 0;
         loop {
             if (*entry).typ == 0 {
                 break;
