@@ -10,5 +10,7 @@
     "linker-flavor": "gcc",
     "no-compiler-rt": true,
     "eliminate-frame-pointer": false,
-	"morestack": false
+    "disable-redzone": true,
+	"morestack": false,
+    "panic-strategy": "abort"
 }

@@ -119,7 +119,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Build the bootloader rust project
     println!("Building the bootloader");
     Command::new("xargo")
-        .current_dir(bootloader_path)
+        .env("RUST_TARGET_PATH", &bootloader_path)
+        .current_dir(&bootloader_path)
         .args(&[
               "build", 
               "--target",
