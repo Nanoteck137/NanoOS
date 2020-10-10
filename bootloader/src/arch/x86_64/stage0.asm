@@ -1,7 +1,7 @@
 [org  0x7c00]
 [bits 16]
 
-%define MEMORY_MAP_ADDRESS 0x5000
+%define MEMORY_MAP_ADDRESS 0x0500
 
 ; Support 'modern standard MBR'  
 
@@ -9,14 +9,7 @@ entry:
     cli
     cld
 
-    ; xor ax, ax
-    ; mov ds, ax
-    ; mov es, ax
-    ; mov ss, ax
     mov sp, 0x7c00
-
-    ; mov ax, 0x3
-    ; int 0x10
 
     mov [boot_disk], dl
 
@@ -103,9 +96,6 @@ build_memory_map:
         mov cx, 12
         rep stosw
         ret
-
-test_message:
-    db 'Hello World from the stage0', 13, 10, 0
 
 [bits 32]
 
