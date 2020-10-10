@@ -4,10 +4,7 @@
 
 extern crate spin;
 
-use core::panic::PanicInfo;
-
-use spin::Mutex;
-
+mod panic;
 #[macro_use] mod vga_buffer;
 
 #[no_mangle]
@@ -25,22 +22,3 @@ extern fn entry() -> ! {
 
 #[lang = "eh_personality"] extern fn eh_personality() {}
 
-#[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    // TODO(patrik): Should we disable interupts?
-    println!("---------- BOOTLOADER PANIC ----------");
-    
-    if let Some(msg) = info.message() {
-        println!("Message: {}", msg);
-    }
-
-    if let Some(loc) = info.location() {
-        println!("Location: {}:{}:{}", 
-                 loc.file(), loc.line(), loc.column());
-    }
-
-    println!("--------------------------------------");
-
-    // TODO(patrik): Replace with a halt instruction
-    loop {}
-}
