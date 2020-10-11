@@ -5,6 +5,7 @@ name = "kernel"
 version = "0.1.0"
 dependencies = [
  "rlibc",
+ "spin",
 ]
 
 [[package]]
@@ -12,3 +13,9 @@ name = "rlibc"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc874b127765f014d792f16763a81245ab80500e2ad921ed4ee9e82481ee08fe"
+
+[[package]]
+name = "spin"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef7b840d5ef62f81f50649ade37112748461256c64a70bccefeabb4d02c515c5"

@@ -20,28 +20,35 @@ global boot_entry
 extern boot_entry64
 
 boot_entry:
+    ; Setup a stack
     mov esp, stack_top
 
-    ; Enable pageing
-    ; Setup and load a 64 bit GDT table
-
+    ; Setup a identity map of physical memory
     call setup_page_tables
+    ; Enable paging
     call enable_paging
+    ; Load the 64 bit GDT
     call load_gdt
 
-    mov word [0xb8000], 0x0f41
+    ; Long jump to boot_entry64 and from that point we can execute 
+    ; 64 bit instructions
     jmp 0x0008:boot_entry64
     hlt
 
 setup_page_tables:
+    ; Set the first entry inside the p4_table to the p3_table
     mov eax, p3_table
+    ; Set the present and writable bits
     or eax, 0b11 
+    ; Add the entry to the first slot in the p4_table
     mov [p4_table], eax
 
+    ; We do the same for the p3 table
     mov eax, p2_table
     or eax, 0b11
     mov [p3_table], eax
 
+; Inside the p2 table we need to map all 512 entries to a physical address
 .map_p2_table:
     mov eax, 0x200000
     mul ecx
@@ -54,6 +61,7 @@ setup_page_tables:
 
     ret
 
+; Function to enable paging
 enable_paging:
     mov eax, p4_table
     mov cr3, eax
@@ -72,11 +80,13 @@ enable_paging:
     mov cr0, eax
     ret
 
+; Function to load the gdt
 load_gdt:
     lgdt[gdt64.pointer]
     ret
 
 section .rodata
+; The GDT we load for 64 bit
 gdt64:
     dq 0 
     dq (1<<43) | (1<<44) | (1<<47) | (1<<53) 
@@ -85,6 +95,7 @@ gdt64:
     dq gdt64
 
 section .bss
+; The paging tables we need for 64 bit transition
 align 4096
 p4_table:
     resb 4096

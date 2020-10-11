@@ -1,20 +1,21 @@
+#![feature(panic_info_message)]
 #![no_std]
 
 extern crate rlibc;
 
 use core::panic::PanicInfo;
 
+#[macro_use] mod vga_buffer;
+mod panic;
+
 #[no_mangle]
 fn kernel_entry() -> ! {
-    let screen = 0xb8000 as *mut u16;
-    unsafe {
-        *screen.offset(0) = 0x0f41;
+    {
+        let mut writer = vga_buffer::WRITER.lock();
+        writer.clear();
     }
+    println!("Hello World from the kernel");
+    panic!("Test panic");
 
-    loop {}
-}
-
-#[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
