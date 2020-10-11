@@ -37,6 +37,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Command::new("nasm")
         .current_dir(&build_path)
         .args(&[
+            "-g",
             "-f", "elf64",
             boot_assembly.to_str().unwrap(),
             "-o", "boot.o"])
@@ -45,9 +46,25 @@ fn main() -> Result<(), Box<dyn Error>> {
     Command::new("nasm")
         .current_dir(&build_path)
         .args(&[
+            "-g",
             "-f", "elf64",
             boot64_assembly.to_str().unwrap(),
             "-o", "boot64.o"])
+        .status()?.success();
+
+    println!("Building the kernel");
+
+    let kernel_path = Path::new("kernel").canonicalize()?;
+    let kernel_build_path = 
+        Path::new(&build_path)
+        .join("kernel")
+        .canonicalize()?;
+
+    Command::new("cargo")
+        .current_dir(&kernel_path)
+        .args(&[
+            "build",
+            "--target-dir", kernel_build_path.to_str().unwrap()])
         .status()?.success();
 
     let linker_path = 
@@ -56,6 +73,13 @@ fn main() -> Result<(), Box<dyn Error>> {
         .join("arch")
         .join("x86_64")
         .join("linker.ld")
+        .canonicalize()?;
+
+    let kernel_lib_path = 
+        Path::new(&kernel_build_path)
+        .join("x86_64-kernel")
+        .join("debug")
+        .join("libkernel.a")
         .canonicalize()?;
     
     println!("Linking the final binary");
@@ -66,6 +90,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             "-T", linker_path.to_str().unwrap(),
             "boot.o",
             "boot64.o",
+            kernel_lib_path.to_str().unwrap(),
             "-o", "kernel.bin"])
         .status()?.success();
 
