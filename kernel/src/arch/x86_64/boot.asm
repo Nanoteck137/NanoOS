@@ -19,5 +19,11 @@ bits 32
 global boot_entry
 
 boot_entry:
+    mov esp, stack_top
     mov word [0xb8000], 0x0f41
     hlt
+
+section .bss
+stack_bottom:
+    resb 4096
+stack_top:
