@@ -16,12 +16,21 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Construct the path to the build directory
     let build_path = Path::new("build").canonicalize()?;
 
-    let boot_assembly = 
+    let kernel_arch_dir = 
         Path::new("kernel")
         .join("src")
         .join("arch")
         .join("x86_64")
+        .canonicalize()?;
+
+    let boot_assembly = 
+        Path::new(&kernel_arch_dir)
         .join("boot.asm")
+        .canonicalize()?;
+    
+    let boot64_assembly = 
+        Path::new(&kernel_arch_dir)
+        .join("boot64.asm")
         .canonicalize()?;
 
     println!("Assembling 'boot.asm'");
@@ -31,6 +40,14 @@ fn main() -> Result<(), Box<dyn Error>> {
             "-f", "elf64",
             boot_assembly.to_str().unwrap(),
             "-o", "boot.o"])
+        .status()?.success();
+
+    Command::new("nasm")
+        .current_dir(&build_path)
+        .args(&[
+            "-f", "elf64",
+            boot64_assembly.to_str().unwrap(),
+            "-o", "boot64.o"])
         .status()?.success();
 
     let linker_path = 
@@ -48,6 +65,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             "-n", 
             "-T", linker_path.to_str().unwrap(),
             "boot.o",
+            "boot64.o",
             "-o", "kernel.bin"])
         .status()?.success();
 
