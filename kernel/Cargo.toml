@@ -1,7 +1,7 @@
 [package]
-name = "bootloader"
+name = "kernel"
 version = "0.1.0"
-authors = ["Patrik M. Rosenström <patrik.millvik@gmail.com>"]
+authors = ["Nanoteck137 <patrik.millvik@gmail.com>"]
 edition = "2018"
 
 [lib]
@@ -10,5 +10,3 @@ crate-type = ["staticlib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-spin = "0.6.0"
-rangeset = { path = "../shared/rangeset" }
