@@ -12,3 +12,6 @@ crate-type = ["staticlib"]
 [dependencies]
 rlibc = "1.0.0"
 spin = "0.6.0"
+multiboot2 = "0.9.0"
+rangeset = { path = "../shared/rangeset" }
+

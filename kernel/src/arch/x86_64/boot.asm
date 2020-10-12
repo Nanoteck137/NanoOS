@@ -23,6 +23,10 @@ boot_entry:
     ; Setup a stack
     mov esp, stack_top
 
+    ; Save the pointer to the multiboot strucuture
+    ; This is passed on to the kernel later when we enter the kernel
+    mov edi, ebx
+
     ; Setup a identity map of physical memory
     call setup_page_tables
     ; Enable paging
@@ -104,5 +108,5 @@ p3_table:
 p2_table:
     resb 4096
 stack_bottom:
-    resb 4096
+    resb 4096 * 4
 stack_top:

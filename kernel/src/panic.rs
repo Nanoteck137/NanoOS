@@ -3,7 +3,7 @@ use core::panic::PanicInfo;
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     // TODO(patrik): Should we disable interupts?
-    println!("---------- BOOTLOADER PANIC ----------");
+    println!("---------- KERNEL PANIC ----------");
     
     if let Some(msg) = info.message() {
         println!("Message: {}", msg);
@@ -14,7 +14,8 @@ fn panic(info: &PanicInfo) -> ! {
                  loc.file(), loc.line(), loc.column());
     }
 
-    println!("--------------------------------------");
+
+    println!("----------------------------------");
 
     // TODO(patrik): Replace with a halt instruction
     loop {}
