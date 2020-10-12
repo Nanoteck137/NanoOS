@@ -9,6 +9,7 @@ use rangeset::{Range, RangeSet};
 
 #[macro_use] mod vga_buffer;
 mod panic;
+mod memory;
 
 #[no_mangle]
 fn kernel_entry(multiboot_address: usize) -> ! {
@@ -56,8 +57,7 @@ fn kernel_entry(multiboot_address: usize) -> ! {
         end: 1 * 1024 * 1024 - 1
     });
 
-    println!("Total Memory: {}MiB", physical_memory.sum().unwrap() / 1024 / 1024);
-    println!("Entries: {:#x?}", physical_memory.entries());
+    memory::init(physical_memory);
 
     loop {}
 }
