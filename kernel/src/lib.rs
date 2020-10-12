@@ -16,6 +16,7 @@ fn kernel_entry(multiboot_address: usize) -> ! {
         // Get the lock for the vga buffer and the lock with unlock 
         // when the variable goes out of this scope
         let mut writer = vga_buffer::WRITER.lock();
+
         // Clear the buffer 
         writer.clear();
     }
@@ -55,7 +56,7 @@ fn kernel_entry(multiboot_address: usize) -> ! {
         end: 1 * 1024 * 1024 - 1
     });
 
-    println!("Total Memory: {}", physical_memory.sum().unwrap() / 1024 / 1024);
+    println!("Total Memory: {}MiB", physical_memory.sum().unwrap() / 1024 / 1024);
     println!("Entries: {:#x?}", physical_memory.entries());
 
     loop {}
