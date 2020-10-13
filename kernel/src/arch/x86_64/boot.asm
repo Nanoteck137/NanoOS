@@ -47,6 +47,12 @@ setup_page_tables:
     ; Add the entry to the first slot in the p4_table
     mov [p4_table], eax
 
+    ; We need to the the 511th entry inside the p4 table to itself
+    ; so we can later recursively map table entries later in the kernel
+    mov eax, p4_table
+    or eax, 0b11 
+    mov [p4_table + 511 * 8], eax
+
     ; We do the same for the p3 table
     mov eax, p2_table
     or eax, 0b11

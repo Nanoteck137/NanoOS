@@ -57,7 +57,54 @@ fn kernel_entry(multiboot_address: usize) -> ! {
         end: 1 * 1024 * 1024 - 1
     });
 
-    memory::init(physical_memory);
+    let elf_sections = boot_info.elf_sections_tag()
+        .expect("Failed to retive the elf sections tag");
+
+    let kernel_start =
+        elf_sections.sections()
+            .map(|x| x.start_address())
+            .min()
+            .unwrap();
+
+    let kernel_end =
+        elf_sections.sections()
+            .map(|x| x.end_address())
+            .max()
+            .unwrap();
+
+    let multiboot_start = multiboot_address as u64;
+    let multiboot_end = multiboot_address as u64 + 
+        boot_info.total_size() as u64;
+
+    println!("Kernel Start: {:#x}", kernel_start);
+    println!("Kernel End: {:#x}", kernel_end);
+
+    println!("Multiboot Start: {:#x}", multiboot_start);
+    println!("Multiboot End: {:#x}", multiboot_end);
+
+    // Remove the range where the kernel is located so we 
+    // don't allocate memory there
+    physical_memory.remove(Range {
+        start: kernel_start,
+        end: kernel_end.checked_sub(1).unwrap()
+    });
+
+    // Remove the multiboot structure range so we don't allocate there
+    physical_memory.remove(Range {
+        start: multiboot_start,
+        end: multiboot_end.checked_sub(1).unwrap()
+    });
+
+    memory::init(&mut physical_memory);
+
+    let table_ptr = 0xffffffff_fffff000 as *const u64;
+    unsafe {
+        let entry = (*table_ptr.offset(0)) & !0xfff;
+        println!("0 = {:#x}", entry);
+        let next_table = entry as *const u64;
+        let entry = (*next_table.offset(0)) & !0xfff;
+        println!("0 511 = {:#x}", entry);
+    }
 
     loop {}
 }
