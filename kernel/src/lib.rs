@@ -98,14 +98,5 @@ fn kernel_entry(multiboot_address: usize) -> ! {
 
     memory::init(&mut physical_memory);
 
-    let cr3 = arch::x86_64::cr3();
-    println!("CR3: {:#x}", cr3);
-
-    let table_ptr = 0xffffffff_fffff000 as *const u64;
-    unsafe {
-        let entry = (*table_ptr.offset(511)) & !0xfff;
-        println!("511 = {:#x}", entry);
-    }
-
     loop {}
 }
