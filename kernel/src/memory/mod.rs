@@ -43,15 +43,18 @@ impl FrameAllocator for RangeSet {
 
 const PAGE_TABLE_ENTRIES: usize = 512;
 
+#[derive(Copy, Clone, Debug)]
+struct PageTableEntry(u64);
+
 #[repr(C, packed)]
 struct PageTable {
-    entries: [u64; PAGE_TABLE_ENTRIES]
+    entries: [PageTableEntry; PAGE_TABLE_ENTRIES]
 }
 
 impl PageTable {
     fn next_table_address(&self, index: usize) -> Option<usize> {
         let entry = self.entries[index];
-        if entry & 1 != 0 {
+        if entry.0 & 1 != 0 {
             let table_address = self as *const _ as usize;
             Some((table_address << 9) | (index << 12))
         } else {
@@ -64,10 +67,12 @@ impl PageTable {
 //   - Page Tables
 //   - Kernel Heap 
 //   - Global Allocator (so we can use the core::alloc stuff)
+//
+// 
 
 pub fn init(physical_memory: &mut RangeSet) {
     println!("Total Detected Memory: {}MiB", 
-             physical_memory.sum().unwrap() / 1024 / 1024);
+             physical_memory.sum().unwrap() as f32 / 1024.0 / 1024.0);
     println!("Entries: {:#x?}", physical_memory.entries());
 
     let cr3 = arch::x86_64::cr3();
@@ -84,8 +89,8 @@ pub fn init(physical_memory: &mut RangeSet) {
 
     unsafe {
         for (i, entry) in (*page_table).entries.iter().enumerate() {
-            if *entry != 0 {
-                println!("Entry {} = {:#x}", i, *entry); 
+            if entry.0 != 0 {
+                println!("Entry {} = {:#x}", i, entry.0); 
             }
         }
     }
