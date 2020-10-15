@@ -33,13 +33,59 @@ impl VGAWriter {
         self.y = 0;
     }
 
+    // Line 1
+    // Line 2
+    // Line 3
+    // Line 4
+    // Line 5
+    // Line 6
+
+    unsafe fn scroll_up(&mut self) {
+        for y in 0..BUFFER_HEIGHT - 1 {
+            let current_row = y;
+            let next_row = y + 1;
+
+            let src = next_row * BUFFER_WIDTH * 2;
+            let dst = current_row * BUFFER_WIDTH * 2;
+
+            let src = self.address + src;
+            let dst = self.address + dst;
+
+            core::ptr::copy_nonoverlapping(src as *const u16,
+                                           dst as *mut u16,
+                                           BUFFER_WIDTH);
+        }
+
+        let y = BUFFER_HEIGHT - 1;
+        // TODO(patrik): Should replace with a clear row function and support
+        // other colors
+        for x in 0..BUFFER_WIDTH {
+            let offset = (x + (y * BUFFER_WIDTH)) * 2;
+            let address = self.address + offset; 
+
+            let color = 0x00;
+            let character = b' ';
+            let entry = (color as u16) << 8 | character as u16;
+            core::ptr::write_volatile(address as *mut u16, entry);
+        }
+    }
+
     // Function to print a single character to the screen 
     // with the x and y cordinates
-    pub fn write_byte(&mut self, character: u8) {
+    unsafe fn write_byte(&mut self, character: u8) {
         match character {
             b'\n' => {
                 self.y += 1;
                 self.x = 0;
+
+                // Check if the y is over the height then we should scroll the
+                // buffer
+                if self.y as usize >= BUFFER_HEIGHT {
+                    // Scroll the buffer up
+                    self.scroll_up();
+                    // Reset the y 
+                    self.y = BUFFER_HEIGHT as u32 - 1;
+                }
             }
 
             _ => {
@@ -58,10 +104,8 @@ impl VGAWriter {
                 // The entry we set in the buffer
                 let entry = (color as u16) << 8 | (character as u16);
 
-                unsafe {
-                    // Write the entry to the address we calculated
-                    core::ptr::write_volatile(address as *mut u16, entry);
-                }
+                // Write the entry to the address we calculated
+                core::ptr::write_volatile(address as *mut u16, entry);
 
                 // Increment the x cordinate
                 self.x += 1;
@@ -77,7 +121,9 @@ impl core::fmt::Write for VGAWriter {
         // Loop through all the bytes in the string and write 
         // them to the buffer
         for byte in s.bytes() {
-          self.write_byte(byte)
+            unsafe {
+                self.write_byte(byte)
+            }
         }
 
         Ok(())

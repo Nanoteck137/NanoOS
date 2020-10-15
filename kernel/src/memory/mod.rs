@@ -241,7 +241,7 @@ impl ActivePageTable {
 }
 
 // TODO(patrik):
-//   - Page Tables
+//   - Page Tables (unmapping)
 //   - Kernel Heap 
 //   - Global Allocator (so we can use the core::alloc stuff)
 

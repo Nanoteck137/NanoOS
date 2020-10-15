@@ -98,5 +98,9 @@ fn kernel_entry(multiboot_address: usize) -> ! {
 
     memory::init(&mut physical_memory);
 
+    for i in 0..10 {
+        println!("Line: {}", i);
+    }
+
     loop {}
 }
