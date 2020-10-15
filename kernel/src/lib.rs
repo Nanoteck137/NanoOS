@@ -20,7 +20,8 @@ fn kernel_entry(multiboot_address: usize) -> ! {
         let mut writer = vga_buffer::WRITER.lock();
 
         // Clear the buffer 
-        writer.clear();
+        writer.clear(vga_buffer::Color::Magenta);
+        writer.set_color(vga_buffer::Color::White, vga_buffer::Color::Magenta);
     }
 
     println!("Welcome to NanoOS v0.01");
@@ -97,10 +98,6 @@ fn kernel_entry(multiboot_address: usize) -> ! {
     });
 
     memory::init(&mut physical_memory);
-
-    for i in 0..10 {
-        println!("Line: {}", i);
-    }
 
     loop {}
 }
