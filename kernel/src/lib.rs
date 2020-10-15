@@ -1,4 +1,4 @@
-#![feature(asm, panic_info_message)]
+#![feature(asm, ptr_internals, panic_info_message)]
 #![no_std]
 
 extern crate rlibc;

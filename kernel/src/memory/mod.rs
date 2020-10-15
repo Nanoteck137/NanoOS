@@ -1,3 +1,4 @@
+use core::ptr::Unique;
 use rangeset::{Range, RangeSet};
 use crate::arch;
 
@@ -35,7 +36,7 @@ impl Page {
     fn containing_address(address: VirtualAddress) -> Self {
         assert!(address.0 < 0x0000_8000_0000_0000 ||
                 address.0 >= 0xffff_8000_0000_0000,
-                "Invalid Virtual Address: {:?}", address);
+                "Invalid Virtual Address: {:#x}", address.0);
 
         // TODO(patrik): Change the 4096 to a constant "PAGE SIZE"
         Page(address.0 / 4096)
@@ -116,6 +117,15 @@ impl PageTable {
         }
     }
 
+    fn zero(&mut self) {
+        // TODO(patrik): Should we use unsafe here?!
+        unsafe {
+            for entry in self.entries.iter_mut() {
+                (*entry) = PageTableEntry(0);
+            }
+        }
+    }
+
     fn next_table<'a>(&'a self, index: usize) -> Option<&'a PageTable> {
         self.next_table_address(index)
             .map(|x| unsafe { &*(x as *const _) })
@@ -125,46 +135,106 @@ impl PageTable {
         self.next_table_address(index)
             .map(|x| unsafe { &mut *(x as *mut _) })
     }
+
+    fn next_table_create<A>(&mut self, index: usize,
+                            allocator: &mut A) -> &mut PageTable 
+        where A: FrameAllocator
+    {
+        if self.next_table(index).is_none() {
+            assert!(self.entries[index].0 & PAGE_HUGE == 0,
+                    "mapping code does not support huge pages");
+
+            let frame = allocator.allocate_frame()
+                .expect("Failed to allocate frame");
+
+            self.entries[index] = 
+                PageTableEntry(frame.0 | PAGE_PRESENT | PAGE_WRITE);
+            self.next_table_mut(index).unwrap().zero();
+        }
+
+        self.next_table_mut(index).unwrap()
+    }
 }
 
-const P4: *const PageTable = 0xffffffff_fffff000 as *const _;
+const P4: *mut PageTable = 0xffffffff_fffff000 as *mut _;
 
-fn translate_page(page: Page) -> Option<PhysicalFrame> {
-    let p3 = unsafe { &*P4 }.next_table(page.p4_index());
 
-    let huge_page = || {
-        p3.and_then(|p3| {
-            if let Some(p2) = p3.next_table(page.p3_index()) {
-                let p2_entry = &p2.entries[page.p2_index()];
-                if let Some(start_frame) = p2_entry.pointed_frame() {
-                    if p2_entry.0 & PAGE_HUGE != 0 {
-                        assert!(start_frame.0 % 512 == 0);
+struct ActivePageTable {
+    top: Unique<PageTable>
+}
 
-                        let frame = 
-                            PhysicalFrame(start_frame.0 + 
-                                          page.p1_index() as u64);
+impl ActivePageTable {
+    unsafe fn new() -> ActivePageTable {
+        ActivePageTable {
+            top: Unique::new_unchecked(P4),
+        }
+    }
 
-                        return Some(frame);
+    fn p4(&self) -> &PageTable {
+        unsafe { self.top.as_ref() }
+    }
+    
+    fn p4_mut(&mut self) -> &mut PageTable {
+        unsafe { self.top.as_mut() }
+    }
+
+    fn translate(&self, virtual_address: VirtualAddress) 
+        -> Option<PhysicalAddress> 
+    {
+        // TODO(patrik): Change 4096 to a constant
+        let offset = virtual_address.0 % 4096;
+        self.translate_page(Page::containing_address(virtual_address))
+            .map(|frame| PhysicalAddress(frame.0 * 4096 + offset))
+    }
+
+    fn translate_page(&self, page: Page) -> Option<PhysicalFrame> {
+        let p3 = self.p4().next_table(page.p4_index());
+
+        let huge_page = || {
+            p3.and_then(|p3| {
+                if let Some(p2) = p3.next_table(page.p3_index()) {
+                    let p2_entry = unsafe { &p2.entries[page.p2_index()] };
+                    if let Some(start_frame) = p2_entry.pointed_frame() {
+                        if p2_entry.0 & PAGE_HUGE != 0 {
+                            assert!(start_frame.0 % 512 == 0);
+
+                            let frame = 
+                                PhysicalFrame(start_frame.0 + 
+                                              page.p1_index() as u64);
+
+                            return Some(frame);
+                        }
                     }
                 }
-            }
 
-            None
-        })
-    };
-
-    let test = 
-        unsafe {
-            p3.and_then(|p3| p3.next_table(page.p3_index()))
-            .and_then(|p2| p2.next_table(page.p2_index()))
-            .and_then(|p1| p1.entries[page.p1_index()].pointed_frame())
-            .or_else(huge_page)
+                None
+            })
         };
-    println!("Page: {:?}", page);
-    println!("p1_index: {}", page.p1_index());
-    println!("Test: {:#x?}", test);
 
-    None
+        let frame = 
+            unsafe {
+                p3.and_then(|p3| p3.next_table(page.p3_index()))
+                .and_then(|p2| p2.next_table(page.p2_index()))
+                .and_then(|p1| p1.entries[page.p1_index()].pointed_frame())
+                .or_else(huge_page)
+            };
+
+        frame
+    }
+
+    fn map_to<A>(&mut self, page: Page, frame: PhysicalFrame, 
+                 flags: u64, allocator: &mut A)
+        where A: FrameAllocator
+    {
+        let p4 = self.p4_mut(); 
+        let p3 = p4.next_table_create(page.p4_index(), allocator);
+        let p2 = p3.next_table_create(page.p3_index(), allocator);
+        let p1 = p2.next_table_create(page.p2_index(), allocator);
+
+        assert!(p1.entries[page.p1_index()].0 == 0);
+        p1.entries[page.p1_index()] = 
+            PageTableEntry(frame.0 | PAGE_PRESENT | flags);
+    }
 }
 
 // TODO(patrik):
@@ -185,18 +255,10 @@ fn print_table_entries(table: &PageTable) {
 pub fn init(physical_memory: &mut RangeSet) {
     println!("Total Detected Memory: {}MiB", 
              physical_memory.sum().unwrap() as f32 / 1024.0 / 1024.0);
-    println!("Entries: {:#x?}", physical_memory.entries());
+    // println!("Entries: {:#x?}", physical_memory.entries());
 
-    let cr3 = arch::x86_64::cr3();
-    let page_table = unsafe { &*P4 };
+    let page_table = unsafe { ActivePageTable::new() };
+    let address = page_table.translate(VirtualAddress(0xb8000));
+    println!("Address: {:#x?}", address);
 
-    let page = Page::containing_address(VirtualAddress(0x0000));
-    translate_page(page);
-
-    println!("P4");
-    print_table_entries(&page_table);
-
-    let p3_table = page_table.next_table(0).unwrap();
-    println!("P3");
-    print_table_entries(&p3_table);
 }
