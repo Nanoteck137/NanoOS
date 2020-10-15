@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub fn cr3() -> u64 {
     let result: u64;
     
@@ -9,6 +10,7 @@ pub fn cr3() -> u64 {
     result
 }
 
+#[allow(dead_code)]
 pub fn set_cr3(value: u64) {
     unsafe {
         asm!("mov cr3, {0}",

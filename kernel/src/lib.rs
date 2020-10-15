@@ -21,6 +21,7 @@ fn kernel_entry(multiboot_address: usize) -> ! {
 
         // Clear the buffer 
         writer.clear(vga_buffer::Color::Magenta);
+        // Set the color to use
         writer.set_color(vga_buffer::Color::White, vga_buffer::Color::Magenta);
     }
 

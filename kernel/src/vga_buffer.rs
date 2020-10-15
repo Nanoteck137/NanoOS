@@ -169,9 +169,7 @@ impl core::fmt::Write for VGAWriter {
         // Loop through all the bytes in the string and write 
         // them to the buffer
         for byte in s.bytes() {
-            unsafe {
-                self.write_byte(byte)
-            }
+            self.write_byte(byte)
         }
 
         Ok(())

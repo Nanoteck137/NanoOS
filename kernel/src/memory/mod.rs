@@ -1,6 +1,8 @@
+// This is for all the warnings for unused flags
+#![allow(dead_code)]
+
 use core::ptr::Unique;
 use rangeset::{Range, RangeSet};
-use crate::arch;
 
 const PAGE_PRESENT:       u64 = 1 <<  0;
 const PAGE_WRITE:         u64 = 1 <<  1;
