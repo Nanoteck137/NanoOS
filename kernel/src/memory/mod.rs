@@ -131,7 +131,9 @@ impl PageTable {
             .map(|x| unsafe { &*(x as *const _) })
     }
 
-    fn next_table_mut<'a>(&'a mut self, index: usize) -> Option<&'a mut PageTable> {
+    fn next_table_mut<'a>(&'a mut self, index: usize) 
+        -> Option<&'a mut PageTable>
+    {
         self.next_table_address(index)
             .map(|x| unsafe { &mut *(x as *mut _) })
     }
@@ -148,7 +150,8 @@ impl PageTable {
                 .expect("Failed to allocate frame");
 
             self.entries[index] = 
-                PageTableEntry(frame.0 | PAGE_PRESENT | PAGE_WRITE);
+                PageTableEntry((frame.0 * 4096) | PAGE_PRESENT | PAGE_WRITE);
+
             self.next_table_mut(index).unwrap().zero();
         }
 
@@ -214,9 +217,9 @@ impl ActivePageTable {
         let frame = 
             unsafe {
                 p3.and_then(|p3| p3.next_table(page.p3_index()))
-                .and_then(|p2| p2.next_table(page.p2_index()))
-                .and_then(|p1| p1.entries[page.p1_index()].pointed_frame())
-                .or_else(huge_page)
+                    .and_then(|p2| p2.next_table(page.p2_index()))
+                    .and_then(|p1| p1.entries[page.p1_index()].pointed_frame())
+                    .or_else(huge_page)
             };
 
         frame
@@ -233,7 +236,7 @@ impl ActivePageTable {
 
         assert!(p1.entries[page.p1_index()].0 == 0);
         p1.entries[page.p1_index()] = 
-            PageTableEntry(frame.0 | PAGE_PRESENT | flags);
+            PageTableEntry(frame.0 * 4096 | PAGE_PRESENT | flags);
     }
 }
 
@@ -255,10 +258,21 @@ fn print_table_entries(table: &PageTable) {
 pub fn init(physical_memory: &mut RangeSet) {
     println!("Total Detected Memory: {}MiB", 
              physical_memory.sum().unwrap() as f32 / 1024.0 / 1024.0);
-    // println!("Entries: {:#x?}", physical_memory.entries());
 
-    let page_table = unsafe { ActivePageTable::new() };
+    let mut page_table = unsafe { ActivePageTable::new() };
+
+    let address = VirtualAddress(42 * 512 * 512 * 4096);
+    let page = Page::containing_address(address);
+    let frame = physical_memory.allocate_frame()
+        .expect("Failed to allocate frame");
+
+    println!("Mapping virtual address: {:#x}", address.0);
+    println!("'{:#x?}' maps to {:#x}", page_table.translate(address), frame.0);
+
+    page_table.map_to(page, frame, 0, physical_memory);
+    println!("Some = {:#x?}", page_table.translate(address));
+    println!("next free frame: {:?}", physical_memory.allocate_frame());
+
     let address = page_table.translate(VirtualAddress(0xb8000));
     println!("Address: {:#x?}", address);
-
 }
